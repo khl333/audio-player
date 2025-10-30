@@ -1,195 +1,531 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full bg-slate-950">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Audio Player</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
-            color: #333;
-            text-align: center;
-        }
-        
-        h1 {
-            color: #2c3e50;
-            margin-bottom: 30px;
-        }
-        
-        .player-container {
-            background-color: #fff;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
-        }
-        
-        .audio-element {
-            width: 100%;
-            margin: 20px 0;
-        }
-        
-        .status {
-            font-style: italic;
-            color: #666;
-            font-size: 0.9em;
-            margin-top: 15px;
-        }
-        
-        .player-title {
-            font-weight: bold;
-            font-size: 1.2em;
-            margin-bottom: 10px;
-            color: #2c3e50;
-        }
-        
-        .play-button {
-            background-color: #3498db;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 60px;
-            height: 60px;
-            font-size: 24px;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            margin: 15px 0;
-            transition: background-color 0.3s;
-        }
-        
-        .play-button:hover {
-            background-color: #2980b9;
-        }
-        
-        .download-button {
-            background-color: #2ecc71;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            padding: 10px 15px;
-            font-size: 16px;
-            cursor: pointer;
-            margin: 15px 0;
-            text-decoration: none;
-            display: inline-block;
-        }
-        
-        .download-button:hover {
-            background-color: #27ae60;
-        }
-        
-        .device-detect {
-            font-size: 0.8em;
-            color: #777;
-            margin-top: 30px;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Live Stream Command Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.11"></script>
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: radial-gradient(130% 130% at 15% 15%, rgba(56, 189, 248, 0.18) 0%, transparent 45%),
+                  radial-gradient(100% 120% at 85% 0%, rgba(236, 72, 153, 0.15) 0%, transparent 55%),
+                  #020617;
+      min-height: 100vh;
+    }
+
+    .glass-card {
+      background: rgba(15, 23, 42, 0.68);
+      border: 1px solid rgba(148, 163, 184, 0.08);
+      backdrop-filter: blur(20px);
+    }
+
+    .status-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 9999px;
+      margin-right: 8px;
+      transition: background-color .3s ease;
+    }
+
+    .status-idle { background-color: #64748b; }
+    .status-connecting { background-color: #f97316; }
+    .status-playing { background-color: #22c55e; }
+    .status-error { background-color: #f43f5e; }
+
+    .btn {
+      padding: 0.55rem 0.9rem;
+      border-radius: 9999px;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      background: linear-gradient(130deg, rgba(15, 23, 42, 0.85) 0%, rgba(30, 41, 59, 0.85) 100%);
+      color: #e2e8f0;
+      font-weight: 600;
+      font-size: 0.85rem;
+      letter-spacing: 0.01em;
+      transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(94, 234, 212, 0.45);
+      box-shadow: 0 15px 35px -20px rgba(56, 189, 248, 0.65);
+    }
+
+    .btn-stop {
+      background: linear-gradient(130deg, rgba(153, 27, 27, 0.85) 0%, rgba(220, 38, 38, 0.85) 100%);
+      border-color: rgba(239, 68, 68, 0.45);
+    }
+
+    .btn-stop:hover {
+      box-shadow: 0 18px 40px -22px rgba(248, 113, 113, 0.7);
+    }
+
+    .rec[data-recording="true"] {
+      background: linear-gradient(130deg, rgba(220, 38, 38, 0.9) 0%, rgba(248, 113, 113, 0.85) 100%);
+      border-color: rgba(248, 113, 113, 0.65);
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.32); }
+      70% { box-shadow: 0 0 0 11px rgba(248, 113, 113, 0); }
+    }
+
+    select {
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      color: #e2e8f0;
+      border-radius: 9999px;
+      padding: 6px 12px;
+      font-size: 0.85rem;
+    }
+
+    select:disabled {
+      opacity: 0.45;
+    }
+
+    .badge {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      background: rgba(56, 189, 248, 0.18);
+      border: 1px solid rgba(125, 211, 252, 0.3);
+      border-radius: 9999px;
+      padding: 2px 10px;
+      letter-spacing: 0.08em;
+    }
+  </style>
 </head>
-<body>
-    <h1>Audio Player</h1>
-    
-    <div class="player-container">
-        <div class="player-title" dir="rtl">عارف انك بتدخل عن طريق المتصفح الصيغة نفسها</div>
-        
-        <!-- Standard HTML5 Audio Player - AAC format has excellent iOS compatibility -->
-        <audio id="audioPlayer" class="audio-element" controls playsinline autoplay>
-            <source src="https://pub-73b7d6240d41401ebe4d74bcb75d6a99.r2.dev/AAC_%D8%B9%D8%A7%D8%B1%D9%81%20%D8%A7%D9%86%D9%83%20%D8%A8%D8%AA%D8%AF%D8%AE%D9%84%20%D8%B9%D9%86%20%D8%B7%D8%B1%D9%8A%D9%82%20%D8%A7%D9%84%D9%85%D8%AA%D8%B5%D9%81%D8%AD%20%D8%A7%D9%84%D8%B5%D9%8A%D8%BA%D8%A9%20%D9%86%D9%81%D8%B3%D9%87%D8%A7.aac" type="audio/aac">
-            <source src="https://pub-73b7d6240d41401ebe4d74bcb75d6a99.r2.dev/AAC_%D8%B9%D8%A7%D8%B1%D9%81%20%D8%A7%D9%86%D9%83%20%D8%A8%D8%AA%D8%AF%D8%AE%D9%84%20%D8%B9%D9%86%20%D8%B7%D8%B1%D9%8A%D9%82%20%D8%A7%D9%84%D9%85%D8%AA%D8%B5%D9%81%D8%AD%20%D8%A7%D9%84%D8%B5%D9%8A%D8%BA%D8%A9%20%D9%86%D9%81%D8%B3%D9%87%D8%A7.aac" type="audio/mp4">
-            Your browser doesn't support playing this audio format.
-        </audio>
-        
-        <!-- Large Play Button (for mobile devices that might need a larger touch target) -->
+<body class="h-full text-slate-200">
+  <div class="max-w-7xl mx-auto px-4 md:px-8 py-10 space-y-10">
+    <header class="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+      <div class="space-y-4">
+        <div class="inline-flex items-center gap-3 rounded-full border border-sky-500/30 bg-sky-500/10 px-4 py-1 text-sm font-medium tracking-wide text-sky-200">
+          <span class="inline-flex h-2.5 w-2.5 rounded-full bg-sky-400 animate-pulse"></span>
+          Monitoring live HLS streams
+        </div>
         <div>
-            <button id="playButton" class="play-button">▶</button>
+          <h1 class="text-3xl md:text-4xl font-bold text-white">Live Stream Command Center</h1>
+          <p class="mt-2 max-w-2xl text-slate-400">Stay in control of every channel with real-time health, rapid start/stop controls, and studio-grade recording. Built for broadcast teams that need signal clarity at a glance.</p>
         </div>
-        
-        <div id="playerStatus" class="status">Loading audio player...</div>
-        
-        <!-- Download Option -->
-        <div style="margin-top: 20px;">
-            <p>Or download the file directly:</p>
-            <a href="https://pub-73b7d6240d41401ebe4d74bcb75d6a99.r2.dev/AAC_%D8%B9%D8%A7%D8%B1%D9%81%20%D8%A7%D9%86%D9%83%20%D8%A8%D8%AA%D8%AF%D8%AE%D9%84%20%D8%B9%D9%86%20%D8%B7%D8%B1%D9%8A%D9%82%20%D8%A7%D9%84%D9%85%D8%AA%D8%B5%D9%81%D8%AD%20%D8%A7%D9%84%D8%B5%D9%8A%D8%BA%D8%A9%20%D9%86%D9%81%D8%B3%D9%87%D8%A7.aac" class="download-button" download>Download Audio</a>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full sm:w-auto">
+        <div class="glass-card rounded-2xl px-5 py-4 text-sm shadow-lg">
+          <p class="text-slate-400">Active streams</p>
+          <p id="active-streams-count" class="text-2xl font-semibold text-white">0</p>
         </div>
-    </div>
-    
-    <div id="deviceInfo" class="device-detect"></div>
-    
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const audioPlayer = document.getElementById('audioPlayer');
-            const playButton = document.getElementById('playButton');
-            const playerStatus = document.getElementById('playerStatus');
-            const deviceInfo = document.getElementById('deviceInfo');
-            
-            // Detect iOS (including iPadOS)
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-                          (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-            
-            // Display device info (helpful for debugging)
-            deviceInfo.textContent = isIOS ? 'iOS device detected' : 'Non-iOS device detected';
-            
-            // AAC is well-supported on iOS, but still requires user interaction to start
-            if (isIOS) {
-                playerStatus.textContent = 'Tap play to start audio';
-            } else {
-                playerStatus.textContent = 'Audio ready to play';
-            }
-            
-            // Handle play button click
-            playButton.addEventListener('click', () => {
-                if (audioPlayer.paused) {
-                    // Try to play the audio
-                    audioPlayer.play().then(() => {
-                        playerStatus.textContent = 'Playing...';
-                        playButton.textContent = '⏸';
-                    }).catch(error => {
-                        console.error('Playback error:', error);
-                        playerStatus.textContent = 'Error playing audio. Try using the download option.';
-                    });
-                } else {
-                    audioPlayer.pause();
-                    playButton.textContent = '▶';
-                    playerStatus.textContent = 'Paused';
-                }
-            });
-            
-            // Audio player events
-            audioPlayer.addEventListener('playing', () => {
-                playerStatus.textContent = 'Now playing...';
-                playButton.textContent = '⏸';
-            });
-            
-            audioPlayer.addEventListener('pause', () => {
-                playerStatus.textContent = 'Paused';
-                playButton.textContent = '▶';
-            });
-            
-            audioPlayer.addEventListener('ended', () => {
-                playerStatus.textContent = 'Playback completed';
-                playButton.textContent = '▶';
-            });
-            
-            audioPlayer.addEventListener('error', (e) => {
-                console.error('Audio error:', e);
-                playerStatus.textContent = 'Error loading audio file. Please try downloading it instead.';
-            });
-            
-            audioPlayer.addEventListener('loadeddata', () => {
-                playerStatus.textContent = 'Audio loaded and ready to play';
-                
-                // Attempt autoplay - this will likely be blocked on mobile but works on desktop
-                audioPlayer.play().catch(error => {
-                    console.log('Autoplay prevented:', error);
-                    playerStatus.textContent = 'Tap play to start audio';
-                });
-            });
+        <div class="glass-card rounded-2xl px-5 py-4 text-sm shadow-lg">
+          <p class="text-slate-400">Recording</p>
+          <p id="recording-count" class="text-2xl font-semibold text-white">0</p>
+        </div>
+        <div class="glass-card rounded-2xl px-5 py-4 text-sm shadow-lg">
+          <p class="text-slate-400">Alerts</p>
+          <p id="alerts-count" class="text-2xl font-semibold text-white">0</p>
+        </div>
+      </div>
+    </header>
+
+    <section class="glass-card rounded-3xl border shadow-2xl shadow-sky-500/10">
+      <div class="border-b border-slate-800/60 px-6 py-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h2 class="text-xl font-semibold text-white">Channel overview</h2>
+          <p class="text-sm text-slate-400">Spin up preview feeds instantly, toggle audio routing, and capture archival recordings without leaving the dashboard.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-3 text-sm text-slate-300">
+          <div class="flex items-center gap-2"><span class="status-dot status-playing"></span>Playing</div>
+          <div class="flex items-center gap-2"><span class="status-dot status-connecting"></span>Buffering</div>
+          <div class="flex items-center gap-2"><span class="status-dot status-idle"></span>Idle</div>
+          <div class="flex items-center gap-2"><span class="status-dot status-error"></span>Error</div>
+        </div>
+      </div>
+      <div id="dashboard-grid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 p-6"></div>
+    </section>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const streams = [
+        'https://alibaba-live.servers8.com/jfr2587baugxahurs4y339/live/ch01/index.m3u8',
+        'https://alibaba-live.servers8.com/jfr2587baugxahurs4y339/live/ch02/index.m3u8',
+        'https://alibaba-live.servers8.com/jfr2587baugxahurs4y339/live/ch03/index.m3u8',
+        'https://alibaba-live.servers8.com/jfr2587baugxahurs4y339/live/ch04/index.m3u8',
+        'https://alibaba-live.servers8.com/jfr2587baugxahurs4y339/live/ch05/index.m3u8',
+        'https://alibaba-live.servers8.com/jfr2587baugxahurs4y339/live/ch06/index.m3u8',
+        'https://alibaba-live.servers8.com/jfr2587baugxahurs4y339/live/ch07/index.m3u8',
+        'https://alibaba-live.servers8.com/jfr2587baugxahurs4y339/live/ch08/index.m3u8',
+        'https://alibaba-live.servers8.com/jfr2587baugxahurs4y339/live/ch09/index.m3u8',
+        'https://alibaba-live.servers8.com/jfr2587baugxahurs4y339/live/ch10/index.m3u8'
+      ];
+
+      const grid = document.getElementById('dashboard-grid');
+      const activeCountEl = document.getElementById('active-streams-count');
+      const recordingCountEl = document.getElementById('recording-count');
+      const alertsCountEl = document.getElementById('alerts-count');
+
+      const players = {};
+
+      function updateSummaryCounters() {
+        const list = Object.values(players);
+        const active = list.filter(p => p.state === 'playing').length;
+        const recording = list.filter(p => p.isRecording).length;
+        const alerts = list.filter(p => p.state === 'error').length;
+        activeCountEl.textContent = active;
+        recordingCountEl.textContent = recording;
+        alertsCountEl.textContent = alerts;
+      }
+
+      function bestRecorderMime() {
+        const candidates = [
+          'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+          'video/mp4;codecs=h264,aac',
+          'video/mp4',
+          'video/webm;codecs=vp9,opus',
+          'video/webm;codecs=vp8,opus',
+          'video/webm'
+        ];
+        for (const m of candidates) {
+          if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m;
+        }
+        return null;
+      }
+
+      function setStatus(player, text, clsDot, clsText, state) {
+        player.statusEls.status.textContent = text;
+        player.statusEls.dot.className = `status-dot ${clsDot}`;
+        player.statusEls.status.className = `font-medium ${clsText}`;
+        if (state) {
+          player.state = state;
+          updateSummaryCounters();
+        }
+      }
+
+      function buildAudioTrackOptions(select, tracks, currentIndex) {
+        select.innerHTML = '';
+        tracks.forEach((t, idx) => {
+          const opt = document.createElement('option');
+          const labelParts = [];
+          if (t.name) labelParts.push(t.name);
+          if (t.lang) labelParts.push(t.lang.toUpperCase());
+          if (t.groupId) labelParts.push(`grp:${t.groupId}`);
+          opt.textContent = labelParts.join(' / ') || `Track ${idx}`;
+          opt.value = idx;
+          if (idx === currentIndex) opt.selected = true;
+          select.appendChild(opt);
         });
-    </script>
+        select.disabled = tracks.length <= 1;
+      }
+
+      function togglePlay(ch) {
+        const p = players[ch];
+        if (!p) return;
+
+        const isPlaying = !!(p.hls || p.native);
+        if (isPlaying) {
+          try {
+            if (p.hls) { p.hls.destroy(); p.hls = null; }
+            if (p.native) {
+              p.video.pause();
+              p.video.removeAttribute('src');
+              p.video.load();
+              p.native = false;
+            }
+          } catch (e) {
+            console.warn('stop error', e);
+          }
+
+          try { if (p.audioCtx) { p.audioCtx.close(); } } catch (e) {}
+          p.audioCtx = null;
+          p.audioDest = null;
+          p.mediaElSource = null;
+
+          p.playBtn.textContent = 'Play';
+          p.playBtn.classList.remove('btn-stop');
+          setStatus(p, 'Stopped', 'status-idle', 'text-slate-300', 'idle');
+          p.resEl.textContent = 'N/A';
+          p.brEl.textContent = 'N/A';
+          p.audioSelect.disabled = true;
+          p.audioSelect.innerHTML = '<option>Audio: N/A</option>';
+          return;
+        }
+
+        setStatus(p, 'Connecting…', 'status-connecting', 'text-amber-400', 'connecting');
+        p.video.muted = true;
+
+        if (Hls.isSupported()) {
+          const hls = new Hls({
+            liveSyncDuration: 1,
+            maxBufferLength: 5,
+            enableWorker: false,
+            xhrSetup: function(xhr, url) {
+              if (url.includes('.key') || url.includes('key.') || url.includes('keystore')) {
+                xhr.withCredentials = true;
+              }
+            },
+            keyLoadPolicy: { retry: 4, delay: 250, backoff: 'exponential', maxDelay: 2000 },
+            emeEnabled: true,
+            drmSystems: {}
+          });
+
+          p.hls = hls;
+          hls.loadSource(p.url);
+          hls.attachMedia(p.video);
+
+          hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, (_, data) => {
+            p.allAudioTracks = data.audioTracks || [];
+            buildAudioTrackOptions(p.audioSelect, p.allAudioTracks, hls.audioTrack ?? 0);
+          });
+
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            p.video.play().catch(() => {});
+            p.audioSelect.disabled = false;
+          });
+
+          hls.on(Hls.Events.LEVEL_SWITCHED, (evt, data) => {
+            const level = hls.levels?.[data.level];
+            if (level) {
+              if (level.width && level.height) p.resEl.textContent = `${level.width}x${level.height}`;
+              if (typeof level.bitrate === 'number') p.brEl.textContent = `${(level.bitrate / 1000).toFixed(0)} kbps`;
+            }
+            setStatus(p, 'Playing', 'status-playing', 'text-emerald-400', 'playing');
+          });
+
+          hls.on(Hls.Events.BUFFER_STALLED, () => {
+            setStatus(p, 'Buffering…', 'status-connecting', 'text-amber-400', 'connecting');
+          });
+
+          hls.on(Hls.Events.ERROR, (event, data) => {
+            if (data.fatal) {
+              let msg = 'Error';
+              if (data.details === Hls.ErrorDetails.KEY_SYSTEM_NO_CONFIGURED_LICENSE) msg = 'DRM Error (No License)';
+              if (data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR) msg = 'CORS Error';
+              if (data.details === Hls.ErrorDetails.KEY_LOAD_ERROR) msg = 'Key/CORS Error';
+              if (data.details === Hls.ErrorDetails.BUFFER_APPEND_ERROR) msg = 'Buffer Error';
+              setStatus(p, msg, 'status-error', 'text-rose-400', 'error');
+
+              if (data.type === Hls.ErrorTypes.MEDIA_ERROR && data.details === Hls.ErrorDetails.BUFFER_APPEND_ERROR) {
+                try { hls.recoverMediaError(); } catch (e) {}
+                return;
+              }
+              try { hls.destroy(); } catch (e) {}
+              p.hls = null;
+              p.playBtn.textContent = 'Play';
+              p.playBtn.classList.remove('btn-stop');
+            }
+          });
+
+        } else if (p.video.canPlayType('application/vnd.apple.mpegurl')) {
+          p.native = true;
+          p.video.src = p.url;
+          p.video.play().then(() => {
+            setStatus(p, 'Native Playback', 'status-playing', 'text-sky-300', 'playing');
+            p.resEl.textContent = 'N/A (Native)';
+            p.brEl.textContent = 'N/A (Native)';
+            p.audioSelect.disabled = true;
+            p.audioSelect.innerHTML = '<option>Audio: Native</option>';
+          }).catch(e => {
+            setStatus(p, 'Error', 'status-error', 'text-rose-400', 'error');
+            console.error('native play error', e);
+          });
+        } else {
+          setStatus(p, 'Unsupported', 'status-error', 'text-rose-400', 'error');
+          return;
+        }
+
+        p.playBtn.textContent = 'Stop';
+        p.playBtn.classList.add('btn-stop');
+      }
+
+      function toggleAudio(ch) {
+        const p = players[ch];
+        if (!p) return;
+        p.isAudioOn = !p.isAudioOn;
+        p.video.muted = !p.isAudioOn;
+        p.audioBtn.textContent = p.isAudioOn ? '🔊 Audio On' : '🔇 Audio Off';
+        if (p.isAudioOn) {
+          p.video.play().catch(() => {});
+        }
+      }
+
+      function toggleRecord(ch) {
+        const p = players[ch];
+        if (!p) return;
+
+        const isRecording = p.recBtn.dataset.recording === 'true';
+        if (isRecording) {
+          try { p.recorder?.stop(); } catch (e) {}
+          p.recBtn.dataset.recording = 'false';
+          p.recBtn.textContent = 'Record';
+          p.isRecording = false;
+          updateSummaryCounters();
+          return;
+        }
+
+        try {
+          if (!p.audioCtx) {
+            p.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            p.audioDest = p.audioCtx.createMediaStreamDestination();
+            p.mediaElSource = p.audioCtx.createMediaElementSource(p.video);
+            p.mediaElSource.connect(p.audioDest);
+            p.mediaElSource.connect(p.audioCtx.destination);
+          }
+
+          const vStream = p.video.captureStream?.() || p.video.mozCaptureStream?.();
+          if (!vStream) throw new Error('captureStream not supported by this browser.');
+
+          const videoTracks = vStream.getVideoTracks();
+          if (!videoTracks.length) throw new Error('No video track available to record.');
+
+          const audioTracks = p.audioDest.stream.getAudioTracks();
+          if (!audioTracks.length) {
+            console.warn('No audio track from WebAudio graph—recording will be silent.');
+          }
+
+          const mixedStream = new MediaStream([...videoTracks, ...audioTracks]);
+
+          const mime = bestRecorderMime();
+          if (!mime) throw new Error('No supported recording MIME type found.');
+
+          p.mime = mime;
+          p.chunks = [];
+          const rec = new MediaRecorder(mixedStream, { mimeType: mime, videoBitsPerSecond: 6_000_000, audioBitsPerSecond: 192_000 });
+          p.recorder = rec;
+
+          rec.ondataavailable = (ev) => { if (ev.data && ev.data.size > 0) p.chunks.push(ev.data); };
+          rec.onstop = () => {
+            const blob = new Blob(p.chunks, { type: p.mime });
+            const ext = p.mime.includes('mp4') ? 'mp4' : 'webm';
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `channel-${ch}-${new Date().toISOString().replace(/[:.]/g, '-')}.${ext}`;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => { URL.revokeObjectURL(a.href); document.body.removeChild(a); }, 0);
+            p.chunks = [];
+          };
+
+          rec.start(1000);
+          p.recBtn.dataset.recording = 'true';
+          p.recBtn.textContent = 'Stop Recording';
+          p.isRecording = true;
+          updateSummaryCounters();
+
+          if (p.video.muted && p.isAudioOn) {
+            p.video.muted = false;
+          }
+        } catch (err) {
+          console.error(`Recording failed on channel ${ch}:`, err);
+          alert(
+            `Recording failed on Channel ${ch}:\n${err.message}\n\n` +
+            `Tips:\n` +
+            `• For MP4 output, use Safari (Chrome/Edge usually produce WebM).\n` +
+            `• Streams with DRM or missing CORS headers may block capture.\n` +
+            `• Keep this tab active while recording to avoid OS throttling.`
+          );
+        }
+      }
+
+      streams.forEach((url, index) => {
+        const ch = index + 1;
+
+        const card = document.createElement('div');
+        card.className = 'glass-card rounded-2xl border border-slate-800/50 shadow-lg shadow-slate-900/30 overflow-hidden transition duration-300 hover:-translate-y-1 hover:shadow-sky-500/30';
+
+        card.innerHTML = `
+          <div class="relative aspect-video bg-black">
+            <video id="video-${ch}" class="h-full w-full object-cover" muted playsinline preload="none" crossorigin="anonymous"></video>
+            <div class="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-slate-950/90 to-transparent"></div>
+          </div>
+          <div class="space-y-4 px-5 pb-6 pt-5">
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <h3 class="text-lg font-semibold text-white">Channel ${ch}</h3>
+                <p class="text-xs uppercase tracking-[0.2em] text-slate-400">HLS Feed</p>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <button id="play-btn-${ch}" class="btn">Play</button>
+                <button id="audio-btn-${ch}" class="btn">🔇 Audio Off</button>
+                <button id="rec-btn-${ch}" class="btn rec" data-recording="false">Record</button>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 gap-3 text-sm text-slate-300 sm:grid-cols-2">
+              <div class="flex items-center text-sm">
+                <span id="status-dot-${ch}" class="status-dot status-idle"></span>
+                <div>
+                  <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Status</p>
+                  <p id="status-${ch}" class="font-medium text-slate-300">Idle</p>
+                </div>
+              </div>
+              <div>
+                <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Resolution</p>
+                <p id="resolution-${ch}" class="font-medium text-slate-100">N/A</p>
+              </div>
+              <div>
+                <p class="text-xs uppercase tracking-[0.3em] text-slate-500">Bitrate</p>
+                <p id="bitrate-${ch}" class="font-medium text-slate-100">N/A</p>
+              </div>
+              <div class="flex flex-col gap-2">
+                <label for="audio-select-${ch}" class="text-xs uppercase tracking-[0.3em] text-slate-500">Audio track</label>
+                <select id="audio-select-${ch}" disabled>
+                  <option>Audio: N/A</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        `;
+        grid.appendChild(card);
+
+        const player = {
+          url,
+          video: card.querySelector(`#video-${ch}`),
+          playBtn: card.querySelector(`#play-btn-${ch}`),
+          recBtn: card.querySelector(`#rec-btn-${ch}`),
+          audioBtn: card.querySelector(`#audio-btn-${ch}`),
+          audioSelect: card.querySelector(`#audio-select-${ch}`),
+          statusEls: {
+            status: card.querySelector(`#status-${ch}`),
+            dot: card.querySelector(`#status-dot-${ch}`)
+          },
+          resEl: card.querySelector(`#resolution-${ch}`),
+          brEl: card.querySelector(`#bitrate-${ch}`),
+          hls: null,
+          native: false,
+          isAudioOn: false,
+          state: 'idle',
+          isRecording: false,
+          audioCtx: null,
+          audioDest: null,
+          mediaElSource: null,
+          recorder: null,
+          chunks: [],
+          mime: null,
+          allAudioTracks: []
+        };
+
+        player.playBtn.addEventListener('click', () => togglePlay(ch));
+        player.recBtn.addEventListener('click', () => toggleRecord(ch));
+        player.audioBtn.addEventListener('click', () => toggleAudio(ch));
+
+        players[ch] = player;
+      });
+
+      updateSummaryCounters();
+
+      window.addEventListener('beforeunload', () => {
+        Object.values(players).forEach(p => {
+          try { p.recorder?.state === 'recording' && p.recorder.stop(); } catch (e) {}
+          try { p.hls?.destroy(); } catch (e) {}
+          try { p.audioCtx?.close(); } catch (e) {}
+        });
+      });
+    });
+  </script>
 </body>
 </html>
